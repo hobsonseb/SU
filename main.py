@@ -1,240 +1,177 @@
-# main.py
+import argparse
+import json
+from datetime import datetime
+from urllib.parse import quote
 
-CATEGORIES = ["텍스트 생성", "이미지 생성", "영상 생성", "페르소나", "자동화", "기타"]
 
-prompts = [
+# 키 없이 사용할 여행지 데이터
+TRAVEL_SPOTS = [
     {
-        "title": "블로그 글 초안 작성",
-        "content": "너는 전문 블로그 작가야. 주제에 맞춰 도입, 본문, 결론 구조로 글을 작성해줘.",
-        "category": "텍스트 생성",
-        "favorite": False,
+        "name": "강릉",
+        "region": "강원도",
+        "themes": ["바다", "힐링", "카페", "맛집", "자연"],
+        "reason": "동해 바다와 감성 카페, 맛집을 함께 즐기기 좋은 여행지입니다.",
+        "places": ["안목해변", "경포대", "주문진", "초당순두부거리"]
     },
     {
-        "title": "제품 홍보 이미지 프롬프트",
-        "content": "깔끔한 흰색 배경, 고급스러운 조명, 제품 중심 구도, 광고 사진 스타일",
-        "category": "이미지 생성",
-        "favorite": True,
+        "name": "속초",
+        "region": "강원도",
+        "themes": ["바다", "시장", "맛집", "자연", "힐링"],
+        "reason": "바다, 설악산, 시장 먹거리를 한 번에 즐길 수 있습니다.",
+        "places": ["속초해수욕장", "속초중앙시장", "영금정", "설악산"]
     },
     {
-        "title": "친절한 학습 튜터 페르소나",
-        "content": "너는 초보자를 위한 친절한 튜터야. 어려운 개념을 쉬운 예시로 단계별 설명해줘.",
-        "category": "페르소나",
-        "favorite": False,
+        "name": "부산",
+        "region": "부산광역시",
+        "themes": ["바다", "도시", "맛집", "야경", "카페"],
+        "reason": "바다와 도시 분위기를 동시에 느낄 수 있는 대표 여행지입니다.",
+        "places": ["해운대", "광안리", "감천문화마을", "자갈치시장"]
     },
+    {
+        "name": "전주",
+        "region": "전라북도",
+        "themes": ["한옥", "맛집", "역사", "문화", "데이트"],
+        "reason": "한옥마을과 전통 음식이 유명해 문화 여행에 좋습니다.",
+        "places": ["전주한옥마을", "경기전", "남부시장", "전동성당"]
+    },
+    {
+        "name": "경주",
+        "region": "경상북도",
+        "themes": ["역사", "문화", "산책", "데이트", "가족"],
+        "reason": "신라 역사 유적과 야경 명소가 많아 조용한 여행에 좋습니다.",
+        "places": ["첨성대", "동궁과 월지", "불국사", "황리단길"]
+    },
+    {
+        "name": "여수",
+        "region": "전라남도",
+        "themes": ["바다", "야경", "맛집", "힐링", "데이트"],
+        "reason": "밤바다와 해산물, 낭만적인 분위기로 유명합니다.",
+        "places": ["여수밤바다", "오동도", "돌산대교", "낭만포차거리"]
+    },
+    {
+        "name": "제주",
+        "region": "제주특별자치도",
+        "themes": ["자연", "바다", "힐링", "카페", "사진"],
+        "reason": "자연 풍경, 바다, 감성 카페를 모두 즐길 수 있는 대표 여행지입니다.",
+        "places": ["성산일출봉", "협재해수욕장", "우도", "애월카페거리"]
+    },
+    {
+        "name": "서울",
+        "region": "서울특별시",
+        "themes": ["도시", "쇼핑", "맛집", "문화", "야경"],
+        "reason": "교통이 편하고 쇼핑, 전시, 맛집 탐방에 적합합니다.",
+        "places": ["경복궁", "홍대", "성수동", "남산서울타워"]
+    },
+    {
+        "name": "가평",
+        "region": "경기도",
+        "themes": ["자연", "힐링", "가족", "데이트", "산책"],
+        "reason": "서울 근교에서 자연과 여유를 느끼기 좋은 여행지입니다.",
+        "places": ["남이섬", "아침고요수목원", "자라섬", "청평호"]
+    },
+    {
+        "name": "통영",
+        "region": "경상남도",
+        "themes": ["바다", "섬", "맛집", "힐링", "사진"],
+        "reason": "아름다운 바다 풍경과 섬 여행을 즐기기 좋습니다.",
+        "places": ["동피랑마을", "통영케이블카", "중앙시장", "소매물도"]
+    }
 ]
 
 
-def show_menu():
-    print("\n====== 프롬프트 관리 프로그램 ======")
-    print("1. 프롬프트 추가")
-    print("2. 전체 목록 보기")
-    print("3. 카테고리별 조회")
-    print("4. 프롬프트 검색")
-    print("5. 프롬프트 상세 보기")
-    print("6. 즐겨찾기 추가/해제")
-    print("7. 즐겨찾기 목록 보기")
-    print("0. 종료")
-    print("===================================")
+def score_spot(spot, user_keywords):
+    """사용자가 입력한 키워드와 여행지 테마가 얼마나 맞는지 점수 계산"""
+    score = 0
+    for keyword in user_keywords:
+        for theme in spot["themes"]:
+            if keyword in theme or theme in keyword:
+                score += 1
+    return score
 
 
-def input_not_empty(message):
-    while True:
-        value = input(message).strip()
-        if value:
-            return value
-        print("입력값이 비어 있습니다. 다시 입력해주세요.")
+def recommend_trips(user_input, count):
+    """키워드 기반으로 여행지 추천"""
+    user_keywords = user_input.split()
+
+    scored = []
+    for spot in TRAVEL_SPOTS:
+        score = score_spot(spot, user_keywords)
+        scored.append((score, spot))
+
+    # 점수가 높은 순서대로 정렬
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    # 점수가 모두 0이면 기본 추천
+    results = [spot for score, spot in scored[:count]]
+
+    return results
 
 
-def select_category():
-    print("\n카테고리를 선택하세요.")
-    for i, category in enumerate(CATEGORIES, start=1):
-        print(f"{i}. {category}")
-    print("0. 직접 입력")
-
-    while True:
-        choice = input("번호 선택: ").strip()
-
-        if choice == "0":
-            return input_not_empty("직접 입력할 카테고리: ")
-
-        if choice.isdigit():
-            index = int(choice)
-            if 1 <= index <= len(CATEGORIES):
-                return CATEGORIES[index - 1]
-
-        print("잘못된 입력입니다. 다시 선택해주세요.")
+def make_map_url(place_name):
+    """API 키 없이 사용할 수 있는 카카오맵 검색 URL 생성"""
+    return f"https://map.kakao.com/?q={quote(place_name)}"
 
 
-def add_prompt():
-    print("\n[프롬프트 추가]")
-    title = input_not_empty("제목: ")
-    content = input_not_empty("내용: ")
-    category = select_category()
+def save_result(data):
+    """추천 결과를 JSON 파일로 저장"""
+    filename = f"travel_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
-    new_prompt = {
-        "title": title,
-        "content": content,
-        "category": category,
-        "favorite": False,
-    }
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-    prompts.append(new_prompt)
-    print("프롬프트가 추가되었습니다.")
-
-
-def print_prompt_summary(prompt, index):
-    star = "⭐" if prompt["favorite"] else ""
-    print(f"{index}. [{prompt['category']}] {prompt['title']} {star}")
-
-
-def show_list():
-    print("\n[전체 프롬프트 목록]")
-
-    if not prompts:
-        print("등록된 프롬프트가 없습니다.")
-        return
-
-    for i, prompt in enumerate(prompts, start=1):
-        print_prompt_summary(prompt, i)
-
-
-def show_by_category():
-    print("\n[카테고리별 조회]")
-    category = select_category()
-
-    filtered_prompts = [
-        prompt for prompt in prompts
-        if prompt["category"] == category
-    ]
-
-    if not filtered_prompts:
-        print(f"'{category}' 카테고리에 등록된 프롬프트가 없습니다.")
-        return
-
-    print(f"\n[{category} 카테고리 목록]")
-    for i, prompt in enumerate(filtered_prompts, start=1):
-        print_prompt_summary(prompt, i)
-
-
-def search_prompt():
-    print("\n[프롬프트 검색]")
-    keyword = input_not_empty("검색어 입력: ").lower()
-
-    results = []
-
-    for index, prompt in enumerate(prompts, start=1):
-        title = prompt["title"].lower()
-        content = prompt["content"].lower()
-
-        if keyword in title or keyword in content:
-            results.append((index, prompt))
-
-    if not results:
-        print("검색 결과가 없습니다.")
-        return
-
-    print("\n[검색 결과]")
-    for index, prompt in results:
-        print_prompt_summary(prompt, index)
-
-
-def get_prompt_by_number():
-    if not prompts:
-        print("등록된 프롬프트가 없습니다.")
-        return None, None
-
-    show_list()
-
-    choice = input("프롬프트 번호 입력: ").strip()
-
-    if not choice.isdigit():
-        print("숫자를 입력해주세요.")
-        return None, None
-
-    index = int(choice)
-
-    if index < 1 or index > len(prompts):
-        print("잘못된 번호입니다.")
-        return None, None
-
-    return index, prompts[index - 1]
-
-
-def show_detail():
-    print("\n[프롬프트 상세 보기]")
-    index, prompt = get_prompt_by_number()
-
-    if prompt is None:
-        return
-
-    star = "⭐" if prompt["favorite"] else "없음"
-
-    print("\n====== 상세 정보 ======")
-    print(f"번호: {index}")
-    print(f"제목: {prompt['title']}")
-    print(f"카테고리: {prompt['category']}")
-    print(f"즐겨찾기: {star}")
-    print("내용:")
-    print(prompt["content"])
-    print("======================")
-
-
-def toggle_favorite():
-    print("\n[즐겨찾기 추가/해제]")
-    index, prompt = get_prompt_by_number()
-
-    if prompt is None:
-        return
-
-    prompt["favorite"] = not prompt["favorite"]
-
-    if prompt["favorite"]:
-        print(f"'{prompt['title']}' 프롬프트가 즐겨찾기에 추가되었습니다.")
-    else:
-        print(f"'{prompt['title']}' 프롬프트가 즐겨찾기에서 해제되었습니다.")
-
-
-def show_favorites():
-    print("\n[즐겨찾기 목록]")
-
-    favorite_prompts = [
-        (index, prompt)
-        for index, prompt in enumerate(prompts, start=1)
-        if prompt["favorite"]
-    ]
-
-    if not favorite_prompts:
-        print("즐겨찾기된 프롬프트가 없습니다.")
-        return
-
-    for index, prompt in favorite_prompts:
-        print_prompt_summary(prompt, index)
+    return filename
 
 
 def main():
-    while True:
-        show_menu()
-        choice = input("메뉴 번호를 선택하세요: ").strip()
+    parser = argparse.ArgumentParser(description="API 키 없이 사용하는 국내 여행지 추천 프로그램")
+    parser.add_argument("--theme", type=str, help="원하는 여행 스타일 예: 바다 힐링 맛집")
+    parser.add_argument("--count", type=int, default=3, help="추천 개수")
+    args = parser.parse_args()
 
-        if choice == "1":
-            add_prompt()
-        elif choice == "2":
-            show_list()
-        elif choice == "3":
-            show_by_category()
-        elif choice == "4":
-            search_prompt()
-        elif choice == "5":
-            show_detail()
-        elif choice == "6":
-            toggle_favorite()
-        elif choice == "7":
-            show_favorites()
-        elif choice == "0":
-            print("프로그램을 종료합니다.")
-            break
-        else:
-            print("잘못된 메뉴 번호입니다. 다시 선택해주세요.")
+    if args.theme:
+        user_input = args.theme
+    else:
+        user_input = input("어떤 여행을 원해? 예: 바다 힐링 맛집 자연 > ")
+
+    recommendations = recommend_trips(user_input, args.count)
+
+    result_data = {
+        "user_input": user_input,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "recommendations": []
+    }
+
+    print("\n국내 여행지 추천 결과")
+    print("=" * 40)
+
+    for idx, spot in enumerate(recommendations, start=1):
+        print(f"\n{idx}. {spot['name']} ({spot['region']})")
+        print(f"추천 이유: {spot['reason']}")
+        print("추천 장소:")
+
+        place_infos = []
+
+        for place in spot["places"]:
+            map_url = make_map_url(place)
+            print(f"  - {place}")
+            print(f"    지도: {map_url}")
+
+            place_infos.append({
+                "name": place,
+                "map_url": map_url
+            })
+
+        result_data["recommendations"].append({
+            "name": spot["name"],
+            "region": spot["region"],
+            "reason": spot["reason"],
+            "places": place_infos
+        })
+
+    filename = save_result(result_data)
+
+    print("\n" + "=" * 40)
+    print(f"결과가 저장되었습니다: {filename}")
 
 
 if __name__ == "__main__":

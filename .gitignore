@@ -1,0 +1,4 @@
+travel_result*.json
+travel_result.txt
+__pycache__/
+.env
